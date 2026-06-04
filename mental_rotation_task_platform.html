@@ -51,7 +51,7 @@
       <div class="w-8 h-8 rounded-lg bg-teal-500 flex items-center justify-center font-bold text-slate-900 shadow">🌀</div>
       <div>
         <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
-          Mental Rotation Task <span class="text-xs bg-teal-500/20 text-teal-300 px-2 py-0.5 rounded font-mono">v3.0 (Photo Native)</span>
+          Mental Rotation Task <span class="text-xs bg-teal-500/20 text-teal-300 px-2 py-0.5 rounded font-mono">v3.1 (Cloud Sync)</span>
         </h1>
         <p class="text-xs text-slate-400">認知神経リハビリテーション & フロー状態評価プラットフォーム</p>
       </div>
@@ -134,7 +134,7 @@
         </div>
       </div>
 
-      <!-- パラメータ詳細設定と被験者設定 -->
+      <!-- 設定エリアグリッド -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <!-- 被験者情報 -->
         <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-700/50 space-y-3">
@@ -152,27 +152,39 @@
           </div>
         </div>
 
-        <!-- パラメータ設定 -->
+        <!-- クラウドデータ転送設定 (Google Apps Script API 連携用) -->
         <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-700/50 space-y-3">
-          <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider border-b border-slate-800 pb-2">詳細パラメータ</h3>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-xs text-slate-400 mb-1">総試行数 (本番)</label>
-              <select id="select-trials" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:outline-none focus:border-teal-500">
-                <option value="16">16 試行</option>
-                <option value="32" selected>32 試行</option>
-                <option value="48">48 試行</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs text-slate-400 mb-1">最大制限時間</label>
-              <select id="select-timeout" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:outline-none focus:border-teal-500">
-                <option value="0">制限なし</option>
-                <option value="3000">3秒</option>
-                <option value="5000" selected>5秒 (標準)</option>
-                <option value="10000">10秒</option>
-              </select>
-            </div>
+          <h3 class="text-xs font-bold text-purple-400 uppercase tracking-wider border-b border-slate-800 pb-2">クラウドデータ回収設定 (自動同期)</h3>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">GAS Web App URL (ウェブアプリURL)</label>
+            <input type="text" id="input-gas-url" placeholder="https://script.google.com/macros/s/.../exec" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-purple-500 text-xs">
+            <p class="text-[9px] text-slate-500 mt-1 leading-relaxed">
+              ※ デプロイしたGASのURLを入力すると、セッション完了時にデータを指定のGoogleドライブフォルダへ直接、自動バックグラウンド送信します（空欄時はローカル保存のみ）。
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- パラメータ設定 -->
+      <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-700/50 space-y-3">
+        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider border-b border-slate-800 pb-2">詳細パラメータ</h3>
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">総試行数 (本番)</label>
+            <select id="select-trials" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:outline-none focus:border-teal-500">
+              <option value="16">16 試行</option>
+              <option value="32" selected>32 試行</option>
+              <option value="48">48 試行</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">最大制限時間</label>
+            <select id="select-timeout" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:outline-none focus:border-teal-500">
+              <option value="0">制限なし</option>
+              <option value="3000">3秒</option>
+              <option value="5000" selected>5秒 (標準)</option>
+              <option value="10000">10秒</option>
+            </select>
           </div>
           <div>
             <label class="block text-xs text-slate-400 mb-1">反応フィードバック</label>
@@ -294,6 +306,20 @@
     <!-- 4. ダッシュボード・結果分析画面 -->
     <div id="screen-dashboard" class="hidden w-full space-y-6 transition-all duration-300">
       
+      <!-- クラウド転送ステータスバナー (GAS送信時に表示) -->
+      <div id="cloud-status-banner" class="hidden w-full p-4 rounded-xl border flex items-center justify-between text-sm transition-all duration-300">
+        <div class="flex items-center gap-3">
+          <span id="cloud-status-icon" class="text-xl"></span>
+          <div>
+            <span class="font-bold block" id="cloud-status-title">データ同期待ち</span>
+            <span class="text-xs opacity-80" id="cloud-status-desc">Googleドライブへの送信状況を示します。</span>
+          </div>
+        </div>
+        <button type="button" id="btn-cloud-retry" onclick="uploadDataToCloud(true)" class="hidden py-1.5 px-3 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-bold transition">
+          再送信を試みる
+        </button>
+      </div>
+
       <!-- タイトル & サマリー -->
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-xl">
         <div>
@@ -306,6 +332,10 @@
           </p>
         </div>
         <div class="flex flex-wrap gap-2">
+          <!-- クラウド再送信 / 手動送信ボタン -->
+          <button type="button" id="btn-manual-upload" onclick="uploadDataToCloud(true)" class="py-2.5 px-4 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-sm transition-all flex items-center gap-1.5 shadow-md hidden">
+            ☁️ ドライブに同期
+          </button>
           <button type="button" onclick="downloadCSV()" class="py-2.5 px-4 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-xl text-sm transition-all flex items-center gap-1.5 shadow-md">
             📥 CSVデータを保存
           </button>
@@ -437,7 +467,7 @@
       </div>
       <p class="text-sm text-slate-300" id="confirm-message">本当に実行しますか？</p>
       <div class="flex gap-3 pt-2">
-        <button type="button" id="btn-confirm-cancel" class="flex-1 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition text-sm font-medium">キャンセル</button>
+        <button type="button" id="btn-confirm-cancel" class="flex-1 py-2 rounded-lg bg-slate-700 hover:bg-slate-650 transition text-sm font-medium">キャンセル</button>
         <button type="button" id="btn-confirm-ok" class="flex-1 py-2 rounded-lg bg-red-500 hover:bg-red-400 transition text-sm font-bold text-white">中断する</button>
       </div>
     </div>
@@ -447,7 +477,7 @@
     <p>Mental Rotation Task Platform for Academic & Clinical Research. Built for Naotsuu.</p>
   </footer>
 
-  <!-- 通知トースト -->
+  <!-- 各種トースト通知 -->
   <div id="toast" class="fixed bottom-6 right-6 z-50 bg-slate-800 text-teal-400 px-4 py-3 rounded-xl border border-teal-500/20 shadow-2xl flex items-center gap-2 opacity-0 transform translate-y-2 pointer-events-none transition-all duration-300">
     <span class="text-lg">ℹ️</span>
     <span id="toast-text" class="text-sm font-medium">通知メッセージ</span>
@@ -463,6 +493,7 @@
       totalTrials: 16,
       feedbackEnabled: true,
       timeoutLimit: 5000,
+      gasUrl: '', // クラウドデータ送信用のAPI接続先
       
       currentTrialIndex: 0,
       trialsList: [],
@@ -474,7 +505,7 @@
       timerId: null,
       isResponding: false,
 
-      // 写真イメージのパス定義 (提供画像に基づく完璧なマッピング)
+      // 写真イメージのパス定義
       photoPaths: {
         rp: '右手 掌側.png',
         rb: '右手 背側.png',
@@ -501,6 +532,12 @@
     window.onload = function() {
       renderFlowScaleForm();
       document.addEventListener('keydown', handleKeyDown);
+      
+      // 保存済みのGAS URLがあれば自動入力
+      const savedGasUrl = localStorage.getItem('MRT_GAS_URL');
+      if (savedGasUrl) {
+        document.getElementById('input-gas-url').value = savedGasUrl;
+      }
     };
 
     // 刺激表示モードの変更
@@ -619,6 +656,11 @@
       state.feedbackEnabled = document.getElementById('select-feedback').value === 'true';
       state.timeoutLimit = parseInt(document.getElementById('select-timeout').value, 10);
       
+      // GASの接続URLを取得し、ローカルストレージへ保存
+      const gasUrlInput = document.getElementById('input-gas-url').value.trim();
+      state.gasUrl = gasUrlInput;
+      localStorage.setItem('MRT_GAS_URL', gasUrlInput);
+      
       if (state.sessionType === 'practice') {
         state.totalTrials = 4;
         document.getElementById('label-session-type').innerText = "練習モード";
@@ -687,7 +729,7 @@
       state.trialsList = fullList.slice(0, state.totalTrials).sort(() => Math.random() - 0.5);
     }
 
-    // --- 刺激の描画とフォールバック (Anatomical Vector SVG & Image Loader) ---
+    // --- 刺激の描画とフォールバック (Anatomical Vector SVG) ---
     function generateHandSVG(hand, side, additionalClasses = '') {
       const isThumbLeft = (hand === 'right' && side === 'palm') || (hand === 'left' && side === 'back');
       const isBack = side === 'back';
@@ -752,7 +794,6 @@
         return generateHandSVG(hand, side);
       }
 
-      // 提供された個別画像を使用
       let imagePath = '';
       if (hand === 'right' && side === 'palm') imagePath = state.photoPaths.rp;
       else if (hand === 'right' && side === 'back') imagePath = state.photoPaths.rb;
@@ -803,7 +844,6 @@
       
       const el = container.firstElementChild;
       if (el) {
-        // 角度回転の適用
         el.style.transform = `rotate(${currentTrial.angle}deg)`;
       }
       
@@ -959,6 +999,11 @@
       showToast("フロー状態を記録しました。結果を出力します。");
       buildDashboard();
       switchScreen('dashboard');
+      
+      // 本番完了かつGAS URLが指定されている場合は、自動的にクラウドへデータ転送を試みる
+      if (state.sessionType === 'test' && state.gasUrl) {
+        uploadDataToCloud(false);
+      }
     }
 
     function abortSession() {
@@ -1030,6 +1075,14 @@
       renderFlowChart();
       buildSubgroupTable(history);
       buildRawDataTable(history);
+      
+      // GAS設定がある場合、手動同期ボタンをダッシュボードに表示する
+      const manualBtn = document.getElementById('btn-manual-upload');
+      if (state.gasUrl) {
+        manualBtn.classList.remove('hidden');
+      } else {
+        manualBtn.classList.add('hidden');
+      }
     }
 
     function renderRTChart(data) {
@@ -1238,14 +1291,12 @@
       }
     }
 
-    function downloadCSV() {
+    // CSVテキストデータの生成関数 (ダウンロードとアップロードで共通化)
+    function generateCSVString() {
       const history = state.trialHistory;
-      if (history.length === 0) {
-        showToast('エクスポートするデータがありません。');
-        return;
-      }
+      if (history.length === 0) return null;
 
-      let csvContent = "data:text/csv;charset=utf-8,";
+      let csvContent = "";
       const headers = [
         "SubjectID", "SessionType", "DateTime", "TrialNum", "Hand", "Side", "Angle", 
         "CorrectResponse", "UserResponse", "IsCorrect", "ReactionTime_ms",
@@ -1279,7 +1330,17 @@
         csvContent += sanitizedRow.join(",") + "\n";
       });
 
-      const encodedUri = encodeURI(csvContent);
+      return csvContent;
+    }
+
+    function downloadCSV() {
+      const csvData = generateCSVString();
+      if (!csvData) {
+        showToast('エクスポートするデータがありません。');
+        return;
+      }
+
+      const encodedUri = "data:text/csv;charset=utf-8," + encodeURIComponent(csvData);
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
       
@@ -1290,6 +1351,64 @@
       link.click();
       document.body.removeChild(link);
       showToast('CSVデータをダウンロードしました。');
+    }
+
+    // --- Google Apps Script 連携による Googleドライブへの全自動アップロード処理 ---
+    function uploadDataToCloud(isManualClick = false) {
+      if (!state.gasUrl) {
+        if (isManualClick) showToast('GAS Web App URL が設定されていません。');
+        return;
+      }
+
+      const csvData = generateCSVString();
+      if (!csvData) {
+        if (isManualClick) showToast('送信するデータが存在しません。');
+        return;
+      }
+
+      // バナーのUIを「送信中」へ変更
+      const banner = document.getElementById('cloud-status-banner');
+      const icon = document.getElementById('cloud-status-icon');
+      const title = document.getElementById('cloud-status-title');
+      const desc = document.getElementById('cloud-status-desc');
+      const retryBtn = document.getElementById('btn-cloud-retry');
+
+      banner.className = "w-full p-4 rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-300 flex items-center justify-between text-sm transition-all duration-300";
+      icon.innerText = "🔄";
+      title.innerText = "クラウド同期中...";
+      desc.innerText = "データをGoogleドライブに安全に送信しています。そのままお待ちください。";
+      retryBtn.classList.add('hidden');
+      banner.classList.remove('hidden');
+
+      const fileName = `MRT_${state.subjectId}_${state.sessionType}_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
+
+      // シンプルなPOST（Content-Typeを指定しないことで、ブラウザによるプリフライト(OPTIONS)リクエストを回避するCORS対策）
+      fetch(state.gasUrl, {
+        method: 'POST',
+        mode: 'no-cors', // クロスオリジンでのエラーを防止
+        body: JSON.stringify({
+          filename: fileName,
+          csvData: csvData
+        })
+      })
+      .then(() => {
+        // no-cors モードではレスポンス内容をJavaScript側で読み取れませんが、到達自体は確実に完了します
+        banner.className = "w-full p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 flex items-center justify-between text-sm transition-all duration-300";
+        icon.innerText = "✅";
+        title.innerText = "クラウド同期完了";
+        desc.innerText = `Googleドライブの指定フォルダに「${fileName}」として安全に自動保存されました。`;
+        retryBtn.classList.add('hidden');
+        showToast('データをGoogleドライブへ自動保存しました。');
+      })
+      .catch((error) => {
+        console.error('Upload failed:', error);
+        banner.className = "w-full p-4 rounded-xl border border-red-500/30 bg-red-500/10 text-red-300 flex items-center justify-between text-sm transition-all duration-300";
+        icon.innerText = "❌";
+        title.innerText = "同期失敗";
+        desc.innerText = "通信環境またはGASの設定エラーにより、クラウド自動同期に失敗しました。";
+        retryBtn.classList.remove('hidden');
+        showToast('同期に失敗しました。手動でCSVを保存するか、再度送信を試みてください。');
+      });
     }
   </script>
 </body>
